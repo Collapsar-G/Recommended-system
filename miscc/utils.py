@@ -19,6 +19,7 @@
 import json
 import torch
 
+
 def data_loat_att(type_data, split=""):
     """
     返回从attributes中的数据分析
@@ -34,5 +35,7 @@ def data_loat_att(type_data, split=""):
         load_dict = json.load(f)
     return load_dict
 
-def MAE(M, N, predict_M):
-    loss = torch.sum(torch.abs(torch.pow(predict_M.mul(N) - M, 2)))
+
+def MAE_score(pre_M, M):
+    MAE = torch.mean(torch.sub(pre_M, M))
+    return MAE
