@@ -26,6 +26,6 @@ cfg.GPU_ID = 0
 __c.KFM = edict()
 __c.KFM.K = 300
 __c.KFM.LR = 0.001
-__c.KFM.NUM_EPOCHS = 50000
+__c.KFM.NUM_EPOCHS = 20000
 __c.KFM.DATA_TYPE = "DVD"
 

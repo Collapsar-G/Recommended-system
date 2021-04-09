@@ -77,15 +77,25 @@ def PredictRegularizationConstrainR(P, Q, M, N):
     """
     FunkSVD+Regularization+矩阵R的约束(取值只能是0-5, P,Q>0)
     """
-    B = 0.02  # 正则化的系数
-    predict_M = torch.mm(P, Q.t())  # 矩阵相乘
-    loss = torch.sum(torch.abs(predict_M.mul(N) - M, )) + B * torch.sum(torch.pow(P, 2)) + torch.sum(torch.pow(Q, 2))
-    # loss = torch.sum(torch.pow(predict_M - M, 2)) + B * torch.sum(torch.pow(P, 2)) + torch.sum(torch.pow(Q, 2))
+    B = 0.01  # 正则化的系数
     x, y = M.shape
+    mean_M = torch.mean(torch.mean(M)).float()
+    # print(mean_M)
+    M_mean = torch.full((x, y), mean_M).cuda()
+    predict_M = torch.mm(P, Q.t()) + M_mean  # 矩阵相乘
+    # predict_M = torch.mm(P, Q.t())
+    # loss = torch.sum(torch.abs(predict_M.mul(N) - M, )) + B * torch.sum(torch.abs(P)) + torch.sum(torch.abs(Q))
+    loss = torch.sum(torch.pow(predict_M - M, 2)) + B * torch.sum(torch.pow(P, 2)) + torch.sum(torch.pow(Q, 2))
+
     N_1 = torch.ones((x, y)).cuda() - N
     N_2_5 = torch.full((x, y), 2.5).cuda()
     # 限定M的范围
-    constraint = torch.sum(N_1.mul(torch.pow(torch.abs(predict_M - N_2_5)-N_2_5, 2)))
+    # constraint = torch.sum(N_1.mul(torch.sum(torch.abs(predict_M - N_2_5) - N_2_5)))
+    # loss += constraint
+    # # 限定P、Q的范围
+    # loss += (torch.abs(P[P < 0]).sum() + (torch.abs(Q[Q < 0])).sum())
+
+    constraint = torch.sum(N_1.mul(torch.pow(torch.abs(predict_M - N_2_5) - N_2_5, 2)))
     loss += constraint
     # 限定P、Q的范围
     loss += ((P[P < 0] ** 2).sum() + (Q[Q < 0] ** 2).sum())
@@ -104,6 +114,7 @@ def train(M, N, control, count):
     K = cfg.KFM.K
     M = torch.from_numpy(M).float().cuda()
     N = torch.from_numpy(N).float().cuda()
+
     # 初始化矩阵P和Q
     P = Variable(torch.randn(n, K)).cuda()
     Q = Variable(torch.randn(m, K)).cuda()
@@ -139,6 +150,7 @@ def train(M, N, control, count):
             loss = 0
     # 求出最终的矩阵P和Q, 与P*Q
     pred = torch.mm(P, Q.t())
+    pred = torch.sigmoid(pred) * 5
     return pred
 
 
