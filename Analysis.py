@@ -74,7 +74,8 @@ def analysis(path):
 
         attributes_coms[key] = attributes_commodity
 
-    attributes = {"sum_user": len(users), "sum_commodity": len(commoditys), "attributes_commoditys": attributes_coms,
+    attributes = {"sum_user": len(users), "sum_commodity": len(commoditys), "userid_max": max([int(item) for item in users]),
+                  "commodityid_max": max([int(item) for item in commoditys]), "attributes_commoditys": attributes_coms,
                   "attributes_users": attributes_users, "users": users, "commoditys": commoditys,
                   "user2commodity": user2com2score, "commodity2user": com2user2score}
     return attributes
@@ -98,4 +99,4 @@ if __name__ == "__main__":
                  'video_sparse']
 
     for path in data_path:
-        analysis(path)
+        save_attributes(analysis(path), path)

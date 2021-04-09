@@ -21,3 +21,11 @@ from easydict import EasyDict as edict
 __c = edict()
 cfg = __c
 
+cfg.GPU_ID = 0
+# KFM
+__c.KFM = edict()
+__c.KFM.K = 300
+__c.KFM.LR = 0.001
+__c.KFM.NUM_EPOCHS = 50000
+__c.KFM.DATA_TYPE = "DVD"
+
