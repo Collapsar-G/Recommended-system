@@ -36,6 +36,13 @@ def data_loat_att(type_data, split=""):
     return load_dict
 
 
-def MAE_score(pre_M, M):
-    MAE = torch.mean(torch.sub(pre_M, M))
+def MAE_score(pre_M, M, N):
+    MAE = torch.sum(torch.abs(torch.sub(pre_M, M))) / torch.sum(N)
     return MAE
+
+
+def normalized5(pred):
+    max = torch.max(pred)
+    min = torch.min(pred)
+    pred = (pred/(max-min))*5
+    return pred

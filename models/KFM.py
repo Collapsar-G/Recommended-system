@@ -28,9 +28,9 @@ import torch
 from torch import nn
 from torch import optim
 from torch.autograd import Variable
-
+from dataset import data_load, data_loat_test
 from miscc.config import cfg
-from miscc.utils import data_loat_att
+from miscc.utils import data_loat_att, normalized5
 from miscc.utils import MAE_score
 
 if cfg.GPU_ID != "":
@@ -52,8 +52,6 @@ def Predict_L(P, Q, M, N):
     """
     predict_M = torch.mm(P, Q.t())
     loss = torch.sum(torch.abs(torch.pow(torch.sub(predict_M, M), 2)))
-    # loss = torch.sum(torch.abs(predict_M.mul(N) - M, )) / torch.sum(N)
-
     return loss
 
 
@@ -61,11 +59,10 @@ def PredictRegularizationR(P, Q, M, N):
     """
     FunkSVD+Regularization
     """
-    B = 0.02  # 正则化的系数
+    B = cfg.KFM.loss_B  # 正则化的系数
     predict_M = torch.mm(P, Q.t())
     loss = torch.sum(torch.pow(torch.sub(predict_M, M), 2)) + B * torch.sum(torch.pow(P, 2)) + torch.sum(
         torch.pow(Q, 2))
-    # loss = torch.sum(torch.abs(predict_M.mul(N) - M, )) + B * torch.sum(torch.pow(P, 2)) + torch.sum(torch.pow(Q, 2))
     return loss
 
 
@@ -73,9 +70,8 @@ def PredictRegularizationConstrainR(P, Q, M, N):
     """
     FunkSVD+Regularization+矩阵R的约束(取值只能是0-5, P,Q>0)
     """
-    B = 0.03  # 正则化的系数
+    B = cfg.KFM.loss_B  # 正则化的系数
     predict_M = torch.mm(P, Q.t())
-    # loss = torch.sum(torch.abs(predict_M.mul(N) - M, )) + B * torch.sum(torch.pow(P, 2)) + torch.sum(torch.pow(Q, 2))
     loss = torch.sum(torch.pow(torch.sub(predict_M, M), 2)) + B * torch.sum(torch.pow(P, 2)) + torch.sum(
         torch.pow(Q, 2))
     x, y = M.shape
@@ -97,6 +93,9 @@ def setup_seed(seed):
 
 
 def train(M, N, control, count):
+    print("开始训练")
+    # 设置随机数种子
+    setup_seed(cfg.KFM.random_seed)
     M = M
     n, m = M.shape
     K = cfg.KFM.K
@@ -110,7 +109,7 @@ def train(M, N, control, count):
     # 定义优化器
     learning_rate = cfg.KFM.LR
     optimizer = torch.optim.Adam([P, Q], lr=learning_rate)
-    lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=2000, gamma=1)
+    lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=cfg.KFM.lr_step_size, gamma=cfg.KFM.LR_gamma)
 
     num_epochs = cfg.KFM.NUM_EPOCHS
     loss = 0.
@@ -129,86 +128,70 @@ def train(M, N, control, count):
         loss.backward()  # 反向传播
         optimizer.step()  # 进行优化
         lr_scheduler.step()
-        if epoch % 500 == 0:
+        if epoch % cfg.KFM.batch_size == 0:
             print('| epoch {:3d} /{:5d}  | '
                   'loss {:5.7f} | '
                   'learning rate {:5.7f}'.format(epoch, num_epochs, loss / count,
                                                  optimizer.state_dict()['param_groups'][0]['lr']))
             loss = 0
+
     # 求出最终的矩阵P和Q, 与P*Q
     pred = torch.mm(P, Q.t())
-    pred = torch.sigmoid(pred) * 5
+    # pred = torch.sigmoid(pred) * 5
+    pred = normalized5(pred)
+    print("训练完成")
 
+    print('-' * 10)
+    print('-' * 10)
     return pred
 
 
-def KMF(control="Predict_L"):
-    print('-' * 10)
-    print("加载数据")
-    print('-' * 10)
-    data_train = data_loat_att(cfg.KFM.DATA_TYPE, "train")
-    print("成功加载训练数据")
-    data_test = data_loat_att(cfg.KFM.DATA_TYPE, "test")
-    print("成功加载测试数据")
-    print('-' * 10)
-    print('-' * 10)
+def KMF(control=cfg.KFM.control):
+    M, N, count = data_load()
 
-    print("构建评分矩阵")
-    x, y = int(data_train["userid_max"]) + 1, int(data_train["commodityid_max"]) + 1
-    M = np.zeros((x, y))
-    N = np.zeros((x, y))
-    data_score = data_train["user2commodity"]
-    count = 0
-    for i in data_score:
-        com = data_score[i]
-        for j in com:
-            score = com[j]
-            M[int(i)][int(j)] = score
-            N[int(i)][int(j)] = 1
-            count += 1
-    print("成功构建评分矩阵")
-    print('-' * 10)
-    print('-' * 10)
-    print("开始训练")
-    # 设置随机数种子
-    setup_seed(200)
     pred = train(M, N, control, count)
-    print("训练完成")
-    print('-' * 10)
-    print('-' * 10)
 
     pred_data = pred.cpu().detach().numpy()
+
     times = time.strftime("%Y_%m_%d_%H_%M_%S", time.localtime())
-    path = "./output/KFM/%s" % times
+    path = "../output/KFM/%s" % times
     if not os.path.exists(path):
-        os.mkdir(path)
-    np.savetxt("%s/pred_data.txt" % path, pred_data)
-    print("保存训练结果到%s/pred_data.txt" % path)
+        os.makedirs(path)
+    np.savetxt("%s/%s_sparse_pred_data.txt" % (path, cfg.KFM.DATA_TYPE), pred_data)
+    print("保存训练结果到:%s/%s_sparse_pred_data_all.txt" % (path, cfg.KFM.DATA_TYPE))
+
     print('-' * 10)
     print('-' * 10)
-    print("开始测试")
-    N_test = np.zeros((x, y))
-    M_test = np.zeros((x, y))
-    data_score_test = data_test["user2commodity"]
-    for i in data_score_test:
-        com = data_score_test[i]
-        for j in com:
-            N_test[i][j] = 1
-            M_test[i][j] = com[j]
-    test(pred, M_test, N_test)
+
+    pred_M, test_M, N_test, result = data_loat_test(pred_data)
+
+    file_write_obj = open("%s/%s_sparse_pred_data_test.txt" % (path, cfg.KFM.DATA_TYPE), 'w')
+    for var in result:
+        file_write_obj.writelines(var[0] + "," + var[1] + "," + str(var[2]))
+        # print(var)
+        file_write_obj.write('\n')
+    file_write_obj.close()
+
+    # result_data = pd.DataFrame(data=result)
+    # np.savetxt("%s/%s_sparse_pred_data_test.txt" % (path, cfg.KFM.DATA_TYPE), result)
+    # result_data.to_csv("%s/%s_sparse_pred_data_test.txt" % (path, cfg.KFM.DATA_TYPE))
+    print("保存测试结果到:%s/%s_sparse_pred_data_test.txt" % (path, cfg.KFM.DATA_TYPE))
+    test(pred_M, test_M, N_test)
+
     return
 
 
 def test(pre_M, test_M, N):
-    N = torch.from_numpy(N).float().cuda()
+    print("开始测试")
+    pre_M = torch.from_numpy(pre_M).float().cuda()
     test_M = torch.from_numpy(test_M).float().cuda()
-    MAE = MAE_score(pre_M.mul(N), test_M)
-    print("测试完成")
+    N = torch.from_numpy(N).float().cuda()
+    MAE = MAE_score(pre_M.mul(N), test_M, N)
+    # MAE = torch.sum(torch.abs(torch.sub(pre_M, test_M))) / torch.sum(N)
     print("MAE:", MAE)
+    print("测试完成")
     return
 
 
 if __name__ == "__main__":
-    # KMF("Predict_L")
-    # KMF("PredictRegularizationR")
-    KMF("PredictRegularizationConstrainR")
+    KMF()
