@@ -137,8 +137,8 @@ def train(M, N, control, count):
 
     # 求出最终的矩阵P和Q, 与P*Q
     pred = torch.mm(P, Q.t())
-    # pred = torch.sigmoid(pred) * 5
-    pred = normalized5(pred)
+    pred = torch.sigmoid(pred) * 5
+    # pred = normalized5(pred)
     print("训练完成")
 
     print('-' * 10)
