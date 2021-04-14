@@ -51,7 +51,8 @@ def Predict_L(P, Q, M, N):
     :return: loss：损失值
     """
     predict_M = torch.mm(P, Q.t())
-    loss = torch.sum(torch.abs(torch.pow(torch.sub(predict_M, M), 2)))
+    loss = torch.sum(torch.abs(torch.pow(torch.sub(predict_M, M.mul(N)), 2)))
+    # loss = torch.sum(torch.abs(torch.sub(predict_M, M)))
     return loss
 
 
@@ -61,7 +62,9 @@ def PredictRegularizationR(P, Q, M, N):
     """
     B = cfg.KFM.loss_B  # 正则化的系数
     predict_M = torch.mm(P, Q.t())
-    loss = torch.sum(torch.pow(torch.sub(predict_M, M), 2)) + B * torch.sum(torch.pow(P, 2)) + torch.sum(
+    # loss = torch.sum(torch.pow(torch.sub(predict_M, M.mul(N)), 2)) + B * torch.sum(torch.pow(P, 2)) + torch.sum(
+        # torch.pow(Q, 2))
+    loss = torch.sum(torch.abs(torch.sub(predict_M, M)))  + B * torch.sum(torch.pow(P, 2)) + torch.sum(
         torch.pow(Q, 2))
     return loss
 
@@ -72,13 +75,13 @@ def PredictRegularizationConstrainR(P, Q, M, N):
     """
     B = cfg.KFM.loss_B  # 正则化的系数
     predict_M = torch.mm(P, Q.t())
-    loss = torch.sum(torch.pow(torch.sub(predict_M, M), 2)) + B * torch.sum(torch.pow(P, 2)) + torch.sum(
+    loss = torch.sum(torch.pow(torch.sub(predict_M,  M.mul(N)), 2)) + B * torch.sum(torch.pow(P, 2)) + torch.sum(
         torch.pow(Q, 2))
     x, y = M.shape
     N_1 = torch.sub(torch.ones((x, y)).cuda(), N)
     N_2_5 = torch.full((x, y), 2.5).cuda()
     # 限定M的范围
-    constraint = torch.sum(N_1.mul(torch.pow(torch.sub(torch.abs(torch.sub(predict_M, N_2_5)), N_2_5), 2)))
+    constraint = torch.sum(N_1.mul(torch.pow(torch.add(torch.abs(torch.sub(predict_M, N_2_5)), N_2_5), 2)))
     loss += constraint
     # 限定P、Q的范围
     loss += torch.sum(torch.pow(torch.sub(torch.abs(P), P).mul(torch.full(P.shape, 0.5).cuda()), 2)) + torch.sum(
@@ -137,8 +140,8 @@ def train(M, N, control, count):
 
     # 求出最终的矩阵P和Q, 与P*Q
     pred = torch.mm(P, Q.t())
-    pred = torch.sigmoid(pred) * 5
-    # pred = normalized5(pred)
+    # pred = torch.sigmoid(pred) * 5
+    pred = normalized5(pred)
     print("训练完成")
 
     print('-' * 10)
