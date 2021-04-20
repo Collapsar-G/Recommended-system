@@ -44,5 +44,5 @@ def MAE_score(pre_M, M, N):
 def normalized5(pred):
     max = torch.max(pred)
     min = torch.min(pred)
-    pred = (pred/(max-min))*5
+    pred = (pred/(max-min))*4 +1
     return pred

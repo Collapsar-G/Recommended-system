@@ -15,6 +15,10 @@
 
 @Desc    :   用KFN算法来做矩阵分解
 
+:TODO:
+    1. 将约束修改到1-5;
+    2. 训练完成后归一化到1-5范围内;
+
 """
 
 import numpy as np
@@ -71,7 +75,7 @@ def PredictRegularizationR(P, Q, M, N):
 
 def PredictRegularizationConstrainR(P, Q, M, N):
     """
-    FunkSVD+Regularization+矩阵R的约束(取值只能是0-5, P,Q>0)
+    FunkSVD+Regularization+矩阵R的约束(取值只能是1-5, P,Q>0)
     """
     B = cfg.KFM.loss_B  # 正则化的系数
     predict_M = torch.mm(P, Q.t())
@@ -79,9 +83,10 @@ def PredictRegularizationConstrainR(P, Q, M, N):
         torch.pow(Q, 2))
     x, y = M.shape
     N_1 = torch.sub(torch.ones((x, y)).cuda(), N)
-    N_2_5 = torch.full((x, y), 2.5).cuda()
+    N_3 = torch.full((x, y), 3).cuda()
+    N_2 = torch.full((x, y), 2).cuda()
     # 限定M的范围
-    constraint = torch.sum(N_1.mul(torch.pow(torch.add(torch.abs(torch.sub(predict_M, N_2_5)), N_2_5), 2)))
+    constraint = torch.sum(N_1.mul(torch.pow(torch.sub(torch.abs(torch.sub(predict_M, N_3)), N_2), 2)))
     loss += constraint
     # 限定P、Q的范围
     loss += torch.sum(torch.pow(torch.sub(torch.abs(P), P).mul(torch.full(P.shape, 0.5).cuda()), 2)) + torch.sum(
