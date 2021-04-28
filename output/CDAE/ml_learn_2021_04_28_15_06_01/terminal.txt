@@ -1,0 +1,6 @@
+dataset:ml_learn 
+config:{'num_user': 2504, 'num_item': 2999, 'num_hidden': 100, 'num_mask': 5, 'epochs': 300, 'type': 'dvd', 'lr': 0.01, 'top_n': 10, 'train_path': '../DATA/dvd_sparse_train.csv', 'test_path': '../DATA/dvd_sparse_test.csv', 'dropout': 0.1, 'lam': 0.2, 'a_fun': 'sigmoid', 'b_fun': 'softmax', 'optim': 'Adam', 'patience': 7} 
+| epoch  10 /  300  | loss 3386.8715820 | learning rate 0.0080000 
+------------------------------------------------------- 
+| epoch  20 /  300  | loss 1853.9074707 | learning rate 0.0051200 
+------------------------------------------------------- 
