@@ -22,20 +22,12 @@
 """
 
 import numpy as np
-import time as time
-import pandas as pd
-import os
-import matplotlib.pyplot as plt
-from datetime import date, datetime
-import logging
 import torch
-from torch import nn
-from torch import optim
 from torch.autograd import Variable
-from dataset import data_load, data_loat_test
+
 from miscc.config import cfg
-from miscc.utils import data_loat_att, normalized5
 from miscc.utils import MAE_score
+from miscc.utils import normalized5
 
 if cfg.GPU_ID != "":
     torch.cuda.set_device(cfg.GPU_ID)
@@ -67,8 +59,8 @@ def PredictRegularizationR(P, Q, M, N):
     B = cfg.KFM.loss_B  # 正则化的系数
     predict_M = torch.mm(P, Q.t())
     # loss = torch.sum(torch.pow(torch.sub(predict_M, M.mul(N)), 2)) + B * torch.sum(torch.pow(P, 2)) + torch.sum(
-        # torch.pow(Q, 2))
-    loss = torch.sum(torch.abs(torch.sub(predict_M, M)))  + B * torch.sum(torch.pow(P, 2)) + torch.sum(
+    # torch.pow(Q, 2))
+    loss = torch.sum(torch.abs(torch.sub(predict_M, M))) + B * torch.sum(torch.pow(P, 2)) + torch.sum(
         torch.pow(Q, 2))
     return loss
 
@@ -79,7 +71,7 @@ def PredictRegularizationConstrainR(P, Q, M, N):
     """
     B = cfg.KFM.loss_B  # 正则化的系数
     predict_M = torch.mm(P, Q.t())
-    loss = torch.sum(torch.pow(torch.sub(predict_M,  M.mul(N)), 2)) + B * torch.sum(torch.pow(P, 2)) + torch.sum(
+    loss = torch.sum(torch.pow(torch.sub(predict_M, M.mul(N)), 2)) + B * torch.sum(torch.pow(P, 2)) + torch.sum(
         torch.pow(Q, 2))
     x, y = M.shape
     N_1 = torch.sub(torch.ones((x, y)).cuda(), N)
@@ -154,42 +146,7 @@ def train(M, N, control, count):
     return pred
 
 
-def KMF(control=cfg.KFM.control):
-    M, N, count = data_load()
-
-    pred = train(M, N, control, count)
-
-    pred_data = pred.cpu().detach().numpy()
-
-    times = time.strftime("%Y_%m_%d_%H_%M_%S", time.localtime())
-    path = "../output/KFM/%s" % times
-    if not os.path.exists(path):
-        os.makedirs(path)
-    np.savetxt("%s/%s_sparse_pred_data.txt" % (path, cfg.KFM.DATA_TYPE), pred_data)
-    print("保存训练结果到:%s/%s_sparse_pred_data_all.txt" % (path, cfg.KFM.DATA_TYPE))
-
-    print('-' * 10)
-    print('-' * 10)
-
-    pred_M, test_M, N_test, result = data_loat_test(pred_data)
-
-    file_write_obj = open("%s/%s_sparse_pred_data_test.txt" % (path, cfg.KFM.DATA_TYPE), 'w')
-    for var in result:
-        file_write_obj.writelines(var[0] + "," + var[1] + "," + str(var[2]))
-        # print(var)
-        file_write_obj.write('\n')
-    file_write_obj.close()
-
-    # result_data = pd.DataFrame(data=result)
-    # np.savetxt("%s/%s_sparse_pred_data_test.txt" % (path, cfg.KFM.DATA_TYPE), result)
-    # result_data.to_csv("%s/%s_sparse_pred_data_test.txt" % (path, cfg.KFM.DATA_TYPE))
-    print("保存测试结果到:%s/%s_sparse_pred_data_test.txt" % (path, cfg.KFM.DATA_TYPE))
-    test(pred_M, test_M, N_test,path)
-
-    return
-
-
-def test(pre_M, test_M, N,path):
+def test(pre_M, test_M, N, path):
     print("开始测试")
     pre_M = torch.from_numpy(pre_M).float().cuda()
     test_M = torch.from_numpy(test_M).float().cuda()
@@ -201,7 +158,3 @@ def test(pre_M, test_M, N,path):
         f.write('MAE:%s \n' % MAE)
     print("测试完成")
     return
-
-
-if __name__ == "__main__":
-    KMF()

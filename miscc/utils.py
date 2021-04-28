@@ -20,6 +20,7 @@ import json
 
 import numpy as np
 import torch
+
 from miscc.config import cfg
 
 
@@ -82,7 +83,7 @@ def data_loat_att(type_data, split=""):
     :param split: "train" 或 "test" 或 ""
     :return:
     """
-    path = "../DATA/attributes/attributes_%s_sparse" % type_data
+    path = "./DATA/attributes/attributes_%s_sparse" % type_data
     if split != "":
         path += '_%s' % split
     path += ".json"
