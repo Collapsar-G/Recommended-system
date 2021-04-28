@@ -18,8 +18,12 @@
 """
 from miscc.utils import data_loat_att
 from miscc.config import cfg
-import numpy as np
 
+import numpy as np
+import torch
+from torch.utils.data import Dataset, DataLoader
+import pandas as pd
+from sklearn.model_selection import train_test_split
 
 def data_load():
     print('-' * 10)
@@ -64,3 +68,37 @@ def data_loat_test(pred_data):
             N_test[int(i)][int(j)] = 1
             result.append([i, j, pred_data[int(i)][int(j)]])
     return pred_M, test_M, N_test, result
+
+
+def getdata_ml_learn(train_path, test_path):
+    print("#############")
+    train_data, test_data = {}, {}
+    train_df = pd.read_csv(train_path).iloc[:, :3] - 1
+    train_df = train_df.values.tolist()
+    for uid, iid, score in train_df:
+        train_data.setdefault(uid, {}).setdefault(iid, score)
+    test_df = pd.read_csv(test_path).iloc[:, :3] - 1
+    test_df = test_df.values.tolist()
+    for uid, iid, score in test_df:
+        test_data.setdefault(uid, {}).setdefault(iid, score)
+    # print(test_data)
+    return train_data, test_data
+
+
+class ml_Dataset(Dataset):
+    def __init__(self, data_matrix, data_score):
+        self.data_matrix = data_matrix
+        self.data_score = data_score
+
+    def __getitem__(self, idx):
+        purchase_vec = torch.tensor(self.data_matrix[idx], dtype=torch.float)
+        score_vec = torch.tensor(self.data_score[idx], dtype=torch.float)
+        uid = torch.tensor([idx, ], dtype=torch.long)
+        if cfg.GPU_ID != "":
+            purchase_vec = purchase_vec.cuda()
+            score_vec = score_vec.cuda()
+            uid = uid.cuda()
+        return purchase_vec, uid, score_vec
+
+    def __len__(self):
+        return len(self.data_score)

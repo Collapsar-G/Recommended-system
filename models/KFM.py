@@ -9,7 +9,7 @@
 
 @Contact :   gjf840513468@gmail.com
 
-@File    :   $Visualization.py
+@File    :   $KFM.py
 
 @Time    :   $2021.4.8 $16:50
 
@@ -184,12 +184,12 @@ def KMF(control=cfg.KFM.control):
     # np.savetxt("%s/%s_sparse_pred_data_test.txt" % (path, cfg.KFM.DATA_TYPE), result)
     # result_data.to_csv("%s/%s_sparse_pred_data_test.txt" % (path, cfg.KFM.DATA_TYPE))
     print("保存测试结果到:%s/%s_sparse_pred_data_test.txt" % (path, cfg.KFM.DATA_TYPE))
-    test(pred_M, test_M, N_test)
+    test(pred_M, test_M, N_test,path)
 
     return
 
 
-def test(pre_M, test_M, N):
+def test(pre_M, test_M, N,path):
     print("开始测试")
     pre_M = torch.from_numpy(pre_M).float().cuda()
     test_M = torch.from_numpy(test_M).float().cuda()
@@ -197,6 +197,8 @@ def test(pre_M, test_M, N):
     MAE = MAE_score(pre_M.mul(N), test_M, N)
     # MAE = torch.sum(torch.abs(torch.sub(pre_M, test_M))) / torch.sum(N)
     print("MAE:", MAE)
+    with open(path + "/terminal.txt", 'w') as f:
+        f.write('MAE:%s \n' % MAE)
     print("测试完成")
     return
 
