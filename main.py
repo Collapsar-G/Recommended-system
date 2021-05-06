@@ -25,7 +25,7 @@ from KFM_train import KFM
 
 def parse_args():
     parser = argparse.ArgumentParser(description='推荐系统')
-    parser.add_argument('--type', type=str, help='dvd or video', default="dvd")
+    # parser.add_argument('--type', type=str, help='dvd or video', default="dvd")
     parser.add_argument('--al', type=str, help='algorithm: CDAE or KFM', default="CDAE")
     args = parser.parse_args()
     return args

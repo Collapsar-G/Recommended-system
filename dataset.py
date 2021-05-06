@@ -16,14 +16,14 @@
 @Desc    :   初始化数据
 
 """
-from miscc.utils import data_loat_att
-from miscc.config import cfg
-
 import numpy as np
-import torch
-from torch.utils.data import Dataset, DataLoader
 import pandas as pd
-from sklearn.model_selection import train_test_split
+import torch
+from torch.utils.data import Dataset
+
+from miscc.config import cfg
+from miscc.utils import data_loat_att
+
 
 def data_load():
     print('-' * 10)
@@ -50,11 +50,13 @@ def data_load():
     return M, N, count
 
 
-def data_loat_test(pred_data):
+def data_loat_test():
     data_test = data_loat_att(cfg.KFM.DATA_TYPE, "test")
+    # print(data_test)
     print("成功加载测试数据")
     x, y = int(data_test["userid_max"]) + 1, int(data_test["commodityid_max"]) + 1
-    pred_M = np.zeros((x, y))
+    print(x, y, "%%%%%%%%%%%%%%%")
+    # pred_M = np.zeros((x, y))
     test_M = np.zeros((x, y))
     N_test = np.zeros((x, y))
     result = []
@@ -63,11 +65,11 @@ def data_loat_test(pred_data):
         com = data_score_test[i]
         for j in com:
             score = com[j]
-            pred_M[int(i)][int(j)] = pred_data[int(i)][int(j)]
+            # pred_M[int(i)][int(j)] = pred_data[int(i)][int(j)]
             test_M[int(i)][int(j)] = score
             N_test[int(i)][int(j)] = 1
-            result.append([i, j, pred_data[int(i)][int(j)]])
-    return pred_M, test_M, N_test, result
+            # result.append([i, j, pred_data[int(i)][int(j)]])
+    return test_M, N_test
 
 
 def getdata_ml_learn(train_path, test_path):

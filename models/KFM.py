@@ -25,8 +25,9 @@ import numpy as np
 import torch
 from torch.autograd import Variable
 
+from dataset import data_loat_test
 from miscc.config import cfg
-from miscc.utils import MAE_score
+from miscc.utils import evaluation
 from miscc.utils import normalized5
 
 if cfg.GPU_ID != "":
@@ -92,12 +93,14 @@ def setup_seed(seed):
     np.random.seed(seed)
 
 
-def train(M, N, control, count):
+def train(M, N, control, count, path):
+    min_mae = 99999.99
     print("开始训练")
     # 设置随机数种子
     setup_seed(cfg.KFM.random_seed)
     M = M
     n, m = M.shape
+    print(n, m, "$$$$$$$$$$$$$$$$")
     K = cfg.KFM.K
     M = torch.from_numpy(M).float().cuda()
     N = torch.from_numpy(N).float().cuda()
@@ -113,6 +116,9 @@ def train(M, N, control, count):
 
     num_epochs = cfg.KFM.NUM_EPOCHS
     loss = 0.
+    test_M, N_test = data_loat_test()
+    test_Me = torch.from_numpy(test_M).float().cuda()
+    N_test = torch.from_numpy(N_test).float().cuda()
     for epoch in range(num_epochs + 1):
 
         # 计算Loss
@@ -129,11 +135,34 @@ def train(M, N, control, count):
         optimizer.step()  # 进行优化
         lr_scheduler.step()
         if epoch % cfg.KFM.batch_size == 0:
+            print('-' * 10)
+            print('-' * 10)
             print('| epoch {:3d} /{:5d}  | '
                   'loss {:5.7f} | '
                   'learning rate {:5.7f}'.format(epoch, num_epochs, loss / count,
                                                  optimizer.state_dict()['param_groups'][0]['lr']))
             loss = 0
+            pred = torch.mm(P, Q.t())
+            # pred = torch.sigmoid(pred) * 5
+            pred = normalized5(pred)
+            pred_data = pred.cpu().detach().numpy()
+
+            # result_data = pd.DataFrame(data=result)
+            # np.savetxt("%s/%s_sparse_pred_data_test.txt" % (path, cfg.KFM.DATA_TYPE), result)
+            # result_data.to_csv("%s/%s_sparse_pred_data_test.txt" % (path, cfg.KFM.DATA_TYPE))
+            # print("保存测试结果到:%s/%s_sparse_pred_data_test.txt" % (path, cfg.KFM.DATA_TYPE))
+
+            # test(pred_M, test_M, N_test, path)
+            print(test_Me.size(), N_test.size(), pred.size())
+
+            RMSE, MAE, ACC, AVG_loglikelihood = evaluation(test_Me, N_test, pred)
+            print("RMSE = {:.4f}".format(RMSE), "MAE = {:.4f}".format(MAE), "ACC = {:.10f}".format(ACC),
+                  "AVG Loglike = {:.4f}".format(AVG_loglikelihood))
+            if MAE < min_mae:
+                min_mae = MAE
+                print("当前结果为目前最优")
+                np.savetxt("%s/%s_sparse_pred_data.txt" % (path, cfg.KFM.DATA_TYPE), pred_data)
+                print("保存训练结果到:%s/%s_sparse_pred_data_all.txt" % (path, cfg.KFM.DATA_TYPE))
 
     # 求出最终的矩阵P和Q, 与P*Q
     pred = torch.mm(P, Q.t())
@@ -146,15 +175,25 @@ def train(M, N, control, count):
     return pred
 
 
-def test(pre_M, test_M, N, path):
-    print("开始测试")
-    pre_M = torch.from_numpy(pre_M).float().cuda()
-    test_M = torch.from_numpy(test_M).float().cuda()
-    N = torch.from_numpy(N).float().cuda()
-    MAE = MAE_score(pre_M.mul(N), test_M, N)
-    # MAE = torch.sum(torch.abs(torch.sub(pre_M, test_M))) / torch.sum(N)
-    print("MAE:", MAE)
-    with open(path + "/terminal.txt", 'w') as f:
-        f.write('MAE:%s \n' % MAE)
-    print("测试完成")
-    return
+def write_result(pred_data, path, test_m):
+    result = []
+
+    file_write_obj = open("%s/%s_sparse_pred_data_test.txt" % (path, cfg.KFM.DATA_TYPE), 'w')
+    for var in result:
+        file_write_obj.writelines(var[0] + "," + var[1] + "," + str(var[2]))
+        # print(var)
+        file_write_obj.write('\n')
+    file_write_obj.close()
+
+# def test(pre_M, test_M, N, path):
+#     print("开始测试")
+#     pre_M = torch.from_numpy(pre_M).float().cuda()
+#     test_M = torch.from_numpy(test_M).float().cuda()
+#     N = torch.from_numpy(N).float().cuda()
+#     MAE = MAE_score(pre_M.mul(N), test_M, N)
+#     # MAE = torch.sum(torch.abs(torch.sub(pre_M, test_M))) / torch.sum(N)
+#     print("MAE:", MAE)
+#     with open(path + "/terminal.txt", 'w') as f:
+#         f.write('MAE:%s \n' % MAE)
+#     print("测试完成")
+#     return
